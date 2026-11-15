@@ -11,24 +11,23 @@ Version 0.4.1 classifies executable agent-skill support as enablement.
 
 ## Beta integration and VM installation
 
-Public integration prerequisite: [repowise-ifx beta PR #3](https://github.com/SteelOtter1242/repowise-ifx/pull/3).
-The extension does not require that PR to be merged for a pilot: install the
-exact prerequisite commit into an isolated environment, as shown below.
+Public integration prerequisite: [repowise-ifx beta PR #3](https://github.com/SteelOtter1242/repowise-ifx/pull/3)
+is merged. Install from `repowise-ifx@beta`; the first beta merge containing the
+helper is `cf324dbddf05009d6a59e85af924690f5e99ec06`.
 
 The verified fork target is `SteelOtter1242/repowise-ifx`, `beta` base
 `9404029c184d695d85b8174382ae0b2eb2d9f6f7`, **plus** scope-interface commit
 `9a9519f84` on the `metrics-extension-scope` branch.
-Unmodified beta lacks `repowise.core.repo_config.analysis_paths`: collection
-fails explicitly, despite its package also being version 0.61.0.
+Beta snapshots before that merge lack `repowise.core.repo_config.analysis_paths`:
+collection fails explicitly, despite their package also being version 0.61.0.
 The prerequisite exposes the existing literal-scope validator; it does not
 change indexing/traversal or rebuild indexes.
 
-Apply the supplied prerequisite patch to a clean beta checkout, install that
-checkout into its normal Python environment, then install the metrics wheel
-into the **same** environment:
+For a managed beta checkout, update it through your normal deployment procedure,
+then install it and the metrics wheel into the **same** environment. The
+prerequisite patch is no longer needed on current beta:
 
 ```sh
-git am /path/to/repowise-ifx-beta-metrics-scope.patch
 uv pip install --python /path/to/beta-env/bin/python /path/to/repowise-ifx
 uv pip install --python /path/to/beta-env/bin/python \
   /path/to/repowise_workspace_metrics-0.4.1-py3-none-any.whl
@@ -86,15 +85,15 @@ Use a new environment path and install Python 3.11+ and cloc first if absent.
 ```sh
 uv venv --python 3.13 /path/to/new/metrics-env
 uv pip install --python /path/to/new/metrics-env/bin/python \
-  'repowise @ git+https://github.com/SteelOtter1242/repowise-ifx.git@9a9519f84602f74fbc2b3908fb4d55466e4c5598' \
+  'repowise @ git+https://github.com/SteelOtter1242/repowise-ifx.git@beta' \
   'https://github.com/SteelOtter1242/repowise-workspace-metrics/releases/download/v0.4.1/repowise_workspace_metrics-0.4.1-py3-none-any.whl'
 /path/to/new/metrics-env/bin/repowise workspace-metrics generate \
   /path/to/report-workspace --workspace --months 0 --include-artefacts \
   --evidence-out /path/to/new/pilot.json --out /path/to/new/pilot.html
 ```
 
-Use the full core commit shown in PR #3 if copying an updated deployment
-instruction; do not silently substitute upstream Repowise. Start with a snapshot,
+For a reproducible deployment, replace `beta` with a verified full beta commit
+including the prerequisite; do not silently substitute upstream Repowise. Start with a snapshot,
 then generate new output filenames with `--months 12` after confirming complete
 history. Ownership is optional and requires an authorized loopback interface
 reachable from the same execution environment.
@@ -102,6 +101,34 @@ reachable from the same execution environment.
 Reports are sensitive even though this extension is public. Do not upload pilot
 JSON/HTML to GitHub issues or releases. Serve them only through an authenticated
 internal report location, or download them privately for inspection.
+
+### Updating an existing VM deployment
+
+Use the actual Python executable of the environment that runs Repowise, not an
+unrelated shell interpreter:
+
+```sh
+uv pip install --python /path/to/running-env/bin/python --upgrade \
+  'repowise @ git+https://github.com/SteelOtter1242/repowise-ifx.git@beta' \
+  'https://github.com/SteelOtter1242/repowise-workspace-metrics/releases/download/v0.4.1/repowise_workspace_metrics-0.4.1-py3-none-any.whl'
+/path/to/running-env/bin/repowise workspace-metrics --help
+```
+
+For a `uv tool` installation, upgrade the tool from the fork and include the
+extension in that same tool environment:
+
+```sh
+uv tool install --upgrade \
+  --with 'https://github.com/SteelOtter1242/repowise-workspace-metrics/releases/download/v0.4.1/repowise_workspace_metrics-0.4.1-py3-none-any.whl' \
+  'repowise @ git+https://github.com/SteelOtter1242/repowise-ifx.git@beta'
+repowise workspace-metrics --help
+```
+
+Schedule the update and restart through the deployment's existing service
+manager. Do not start a second server or guess its service name. Existing
+processes do not pick up installed Python changes until restarted. Confirm
+health and plugin command discovery afterward; the version string alone is not
+sufficient because these beta commits all report Repowise 0.61.0.
 
 ### Purpose and agentic contract
 

@@ -1,0 +1,17 @@
+[build-system]
+requires = ["hatchling>=1.24"]
+build-backend = "hatchling.build"
+
+[project]
+name = "repowise-workspace-metrics"
+version = "0.4.1"
+description = "Committed-file composition evidence and offline reports for Repowise workspaces."
+license = "AGPL-3.0-or-later"
+requires-python = ">=3.11"
+dependencies = ["click>=8", "PyYAML>=6", "pathspec>=0.12"]
+
+[project.entry-points."repowise.plugins"]
+workspace-metrics = "repowise_workspace_metrics.plugin:register"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/repowise_workspace_metrics"]

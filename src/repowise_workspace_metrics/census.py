@@ -193,7 +193,7 @@ def counter_warning(document: Mapping[str, Any]) -> str:
     return (
         f"Counter coverage incomplete: code/comment split is UNMEASURED for {missing} "
         f"of {totals['text_files']} text files in the latest snapshot.{history_note} "
-        "Physical and blank lines are retained. Code/comment totals and source ratios cover "
+        "Physical and blank lines are retained. Code/comment totals and code-only source ratios cover "
         "only counted files; missing counts are not measured zeros. "
         "See counter omission evidence for affected paths and statuses."
     )

@@ -12,6 +12,8 @@ Version 0.4.2 preserves unexplained cloc omissions as explicit unmeasured gaps,
 with prominent report and CLI warnings instead of guessed counts.
 Version 0.4.3 opens counter-gap evidence directly without fragment navigation,
 so the control also works inside an opaque-origin sandboxed native viewer.
+Version 0.4.4 adds an implementation : testing : product definition ratio based
+on nonblank physical text lines.
 
 ## Beta integration and VM installation
 
@@ -280,6 +282,13 @@ Chart points/categories open measured period or ownership drill-downs; detailed
 lists stay collapsed until requested. Top-extension and top-owner groupings retain
 an exact remainder rather than dropping the tail. A census without history still
 shows snapshot charts but does not invent a historical line or edit series.
+
+The snapshot summary shows implementation : testing : product definition
+normalized to testing, using physical nonblank text lines for all three
+purposes (including comments). It is undefined when testing has no nonblank
+lines. Purpose classification is heuristic, fixtures are excluded, and unknown
+purposes may contain relevant material. This is not test coverage. The separate
+implementation/testing trend uses cloc code-only lines instead.
 
 History uses immutable local Git objects under frozen census scopes, not working
 files or database discovery. It records UTC month cutoffs, a first-parent/mainline

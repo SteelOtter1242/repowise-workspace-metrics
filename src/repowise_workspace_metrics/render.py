@@ -9,7 +9,7 @@ from typing import Any
 
 from .census import counter_warning, validate
 from .ownership import validate_ownership
-from .purposes import source_file
+from .purposes import source_file, summarize
 from .artefacts import validate_artefacts
 from . import charts
 
@@ -70,9 +70,21 @@ def render_html(document: dict[str, Any]) -> str:
     validate_artefacts(document)
     union = document["union"]
     number = lambda n: f"{n:,}"
-    source = document.get("source_stock", {}).get("implementation", document["by_role"].get("production_source", {"cloc_code": 0}))["cloc_code"]
-    tests = document.get("source_stock", {}).get("testing", document["by_role"].get("test_source", {"cloc_code": 0}))["cloc_code"]
-    ratio = f"{source / tests:.2f} : 1" if tests else "Undefined (no counted test LOC)"
+    purposes = summarize(document["files"])["by_purpose"]
+    def nonblank(purpose: str) -> int:
+        total = purposes.get(purpose, {})
+        return total.get("physical_lines", 0) - total.get("blank_lines", 0)
+
+    implementation = nonblank("product_implementation")
+    testing = nonblank("product_verification")
+    definition = nonblank("product_definition") + nonblank("product_definition_candidate")
+    def ratio_part(value: float) -> str:
+        return "<0.01" if 0 < value < 0.01 else f"{value:.2f}"
+
+    ratio = (
+        f"{ratio_part(implementation / testing)} : 1 : {ratio_part(definition / testing)}"
+        if testing else "Undefined (no testing nonblank lines)"
+    )
     source_rows = [r for r in document["files"] if source_file(r)]
     counted_sources = sum(r["cloc"] is not None for r in source_rows)
     alias_rows = [
@@ -193,10 +205,12 @@ table{{border-collapse:collapse;width:100%;font-size:13px}}td,th{{padding:8px;te
 <section id="snapshot-summary"><div class="cards">
 <div><strong id="card-files">{number(union['files'])}</strong>Included paths</div>
 <div><strong id="card-text">{number(union['physical_lines'])}</strong>Physical text lines</div>
-<div><strong id="card-impl">{number(source)}</strong>Counted implementation code</div>
-<div><strong id="card-tests">{number(tests)}</strong>Counted test-source code</div>
-<div><strong id="card-ratio">{ratio}</strong>Observed implementation/testing ratio</div>
-</div><p id="source-coverage">{counted_sources}/{len(source_rows)} classified source files counted. Ratio excludes fixtures; unsupported and role-unknown files may contain more source. This is not test coverage.</p>
+<div><strong id="card-impl">{number(implementation)}</strong>Implementation nonblank lines</div>
+<div><strong id="card-tests">{number(testing)}</strong>Testing nonblank lines</div>
+<div><strong id="card-definition">{number(definition)}</strong>Product definition nonblank lines</div>
+<div><strong id="card-ratio">{html.escape(ratio)}</strong>Implementation : testing : product definition</div>
+</div><p>Ratio uses physical nonblank text lines, including comments, normalized to testing. It excludes fixtures; purpose classifications are heuristic and unknown-purpose files may contain relevant material. This is not test coverage.</p>
+<p id="source-coverage">{counted_sources}/{len(source_rows)} classified source files counted by cloc for code-only charts.</p>
 <p id="census-coverage">{union['cloc_files']}/{union['text_files']} text files counted by cloc. {union['binary_files']} binary candidates and {union['symlinks']} symlinks have no text-line denominator.
 Physical blank lines: {number(union['blank_lines'])}. Bytes: {number(union['bytes'])}. Overlapping alias paths: {document['overlapping_alias_paths']}.</p></section>
 {chart_sections}

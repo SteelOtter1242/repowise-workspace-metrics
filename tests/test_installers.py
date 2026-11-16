@@ -56,8 +56,11 @@ class InstallerUpdateTests(unittest.TestCase):
             f'exec "{git}" "$@"\n'
         )
         wrapper.chmod(0o755)
+        self.stub_environment(self.home)
+
+    def stub_environment(self, home: Path) -> None:
         for directory in ("bin", "Scripts"):
-            path = self.home / ".venv" / directory
+            path = home / ".venv" / directory
             path.mkdir(parents=True)
             for name in (("python", "repowise") if directory == "bin" else ("python.exe", "repowise.exe")):
                 self.stub(path / name)
@@ -91,6 +94,35 @@ class InstallerUpdateTests(unittest.TestCase):
         else:
             self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
             self.assertIn(error, result.stdout + result.stderr)
+
+    def test_fresh_install_uses_latest_branches_and_rerun_reuses_them(self) -> None:
+        commands = [["bash", str(ROOT / "scripts/install-workspace-metrics.sh")]]
+        if shutil.which("pwsh"):
+            commands.append(["pwsh", "-NoProfile", "-File", str(ROOT / "scripts/install-workspace-metrics.ps1")])
+        latest = [self.git(repo, "rev-parse", "HEAD") for repo in self.remotes]
+        homes = []
+        for i, command in enumerate(commands):
+            home = Path(self.temp.name) / f"fresh-{i}"
+            home.mkdir()
+            self.stub_environment(home)
+            self.env["REPOWISE_HOME"] = str(home)
+            with self.subTest(command=command[0], phase="first install"):
+                self.run_installer(command)
+                self.assertEqual(
+                    [self.git(home / name, "rev-parse", "HEAD")
+                     for name in ("repowise-ifx", "repowise-workspace-metrics")], latest,
+                )
+            homes.append(home)
+
+        self.advance_remotes()
+        for home, command in zip(homes, commands):
+            self.env["REPOWISE_HOME"] = str(home)
+            with self.subTest(command=command[0], phase="rerun"):
+                self.run_installer(command)
+                self.assertEqual(
+                    [self.git(home / name, "rev-parse", "HEAD")
+                     for name in ("repowise-ifx", "repowise-workspace-metrics")], latest,
+                )
 
     def test_explicit_update_and_plain_rerun(self) -> None:
         commands = [(["bash", str(ROOT / "scripts/install-workspace-metrics.sh")], "--update", "--upgrade")]

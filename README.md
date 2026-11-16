@@ -49,44 +49,44 @@ The extension does not replace the fork with upstream Repowise.
 
 ### Workshop installers
 
-Either installer can be downloaded and run by itself; it fetches the pinned
-workspace-metrics source into `REPOWISE_HOME`, so no extension-repository
-checkout is needed. The first install uses the verified beta snapshot above.
-Re-running reuses the checkouts and environment without downgrading them. Pass
+Either installer can be downloaded and run by itself; it fetches Repowise
+`beta` and workspace-metrics `main` into `REPOWISE_HOME`, so no existing
+repository checkout is needed. A fresh install uses the latest branch heads,
+which may differ from the verified snapshot above. Re-running reuses the
+checkouts and environment without updating or downgrading them. Pass
 `--update` / `-Update` (or `--upgrade` / `-Upgrade`) to fast-forward Repowise
 to `beta` and the extension to `main`. Both checkouts must be clean and their
 current commits must be ancestors of the corresponding remote branches.
 The installer verifies Repowise's version and required helpers; it stops with
 an error if the new beta is incompatible. Existing indexes are not deleted.
 
-On Linux or macOS:
+On Linux, WSL or macOS, install with one line:
 
 ```sh
-export REPOWISE_HOME="$HOME/.local/share/repowise-workshop"
-mkdir -p "$REPOWISE_HOME"
-curl -fsSL https://raw.githubusercontent.com/SteelOtter1242/repowise-workspace-metrics/main/scripts/install-workspace-metrics.sh \
-  -o "$REPOWISE_HOME/install-workspace-metrics.sh"
-bash "$REPOWISE_HOME/install-workspace-metrics.sh"
-
-# Later, update both Repowise and workspace-metrics:
-bash "$REPOWISE_HOME/install-workspace-metrics.sh" --update
+export REPOWISE_HOME="${REPOWISE_HOME:-$HOME/.local/share/repowise-workshop}"; mkdir -p "$REPOWISE_HOME" && curl -fsSL https://raw.githubusercontent.com/SteelOtter1242/repowise-workspace-metrics/main/scripts/install-workspace-metrics.sh -o "$REPOWISE_HOME/install-workspace-metrics.sh" && bash "$REPOWISE_HOME/install-workspace-metrics.sh"
 ```
 
-On Windows, from PowerShell without WSL:
+Later, update both checkouts with:
+
+```sh
+bash "${REPOWISE_HOME:-$HOME/.local/share/repowise-workshop}/install-workspace-metrics.sh" --update
+```
+
+On Windows, install from PowerShell without WSL, in one line:
 
 ```powershell
-$env:REPOWISE_HOME = Join-Path $env:LOCALAPPDATA 'RepowiseWorkshop'
-New-Item -ItemType Directory -Force -Path $env:REPOWISE_HOME | Out-Null
-Invoke-WebRequest 'https://raw.githubusercontent.com/SteelOtter1242/repowise-workspace-metrics/main/scripts/install-workspace-metrics.ps1' `
-  -OutFile (Join-Path $env:REPOWISE_HOME 'install-workspace-metrics.ps1')
-& (Join-Path $env:REPOWISE_HOME 'install-workspace-metrics.ps1')
-
-# Later, update both Repowise and workspace-metrics:
-& (Join-Path $env:REPOWISE_HOME 'install-workspace-metrics.ps1') -Update
+& { $ErrorActionPreference = 'Stop'; if (-not $env:REPOWISE_HOME) { $env:REPOWISE_HOME = Join-Path $env:LOCALAPPDATA 'RepowiseWorkshop' }; New-Item -ItemType Directory -Force -Path $env:REPOWISE_HOME | Out-Null; Invoke-WebRequest -UseBasicParsing 'https://raw.githubusercontent.com/SteelOtter1242/repowise-workspace-metrics/main/scripts/install-workspace-metrics.ps1' -OutFile (Join-Path $env:REPOWISE_HOME 'install-workspace-metrics.ps1'); powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $env:REPOWISE_HOME 'install-workspace-metrics.ps1') }
 ```
 
-Replace previously downloaded installers once: older versions do not update the
-extension. Downloading the script does not itself change an existing install.
+Later, update both checkouts with:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $(if ($env:REPOWISE_HOME) { $env:REPOWISE_HOME } else { Join-Path $env:LOCALAPPDATA 'RepowiseWorkshop' }) 'install-workspace-metrics.ps1') -Update
+```
+
+Replace previously downloaded installers once: older versions may install pinned
+snapshots or may not update the extension. Downloading the script does not
+itself change an existing install.
 
 `REPOWISE_HOME` is optional. Its defaults are
 `$HOME/.local/share/repowise-workshop` on Unix and

@@ -3,12 +3,10 @@ set -euo pipefail
 
 readonly REPOWISE_REPO_URL="https://github.com/SteelOtter1242/repowise-ifx.git"
 readonly REPOWISE_BRANCH="beta"
-readonly WORKSHOP_BETA_COMMIT="86caf6a53b4c39aba5579be4229b4cb442c6038f"
 readonly REPOWISE_SSH_URL="git@github.com:SteelOtter1242/repowise-ifx.git"
 readonly METRICS_REPO_URL="https://github.com/SteelOtter1242/repowise-workspace-metrics.git"
 readonly METRICS_REPO_SSH_URL="git@github.com:SteelOtter1242/repowise-workspace-metrics.git"
 readonly METRICS_BRANCH="main"
-readonly METRICS_COMMIT="3d42e58c8d0636fca727ea5b9cd4a9f667c3fc2d"
 export REPOWISE_HOME="${REPOWISE_HOME:-${HOME}/.local/share/repowise-workshop}"
 REPOWISE_SOURCE="${REPOWISE_HOME}/repowise-ifx"
 METRICS_SOURCE="${REPOWISE_HOME}/repowise-workspace-metrics"
@@ -24,9 +22,9 @@ Usage: install-workspace-metrics.sh [--update|--upgrade]
 
 Install Repowise beta and the workspace-metrics extension into REPOWISE_HOME.
 This script can be downloaded and run without checking out the extension repo.
-The first install uses pinned snapshots. Re-running reuses the checkouts and
-environment. Pass --update or --upgrade to fast-forward Repowise to beta and
-the extension to main.
+The first install uses the latest Repowise beta and extension main. Re-running
+reuses the checkouts and environment. Pass --update or --upgrade to
+fast-forward both checkouts to their current branch heads.
 
 Set REPOWISE_HOME once to choose a different installation directory.
 EOF
@@ -76,7 +74,6 @@ else
     die "Path exists but is not a Repowise git checkout: ${REPOWISE_SOURCE}"
   git clone --branch "${REPOWISE_BRANCH}" --single-branch \
     "${REPOWISE_REPO_URL}" "${REPOWISE_SOURCE}"
-  git -C "${REPOWISE_SOURCE}" switch --detach "${WORKSHOP_BETA_COMMIT}"
 fi
 
 if [[ -d "${METRICS_SOURCE}/.git" ]]; then
@@ -96,10 +93,6 @@ else
     die "Path exists but is not an extension git checkout: ${METRICS_SOURCE}"
   git clone --branch "${METRICS_BRANCH}" --single-branch \
     "${METRICS_REPO_URL}" "${METRICS_SOURCE}"
-  if ! git -C "${METRICS_SOURCE}" cat-file -e "${METRICS_COMMIT}^{commit}" 2>/dev/null; then
-    git -C "${METRICS_SOURCE}" fetch origin "${METRICS_BRANCH}"
-  fi
-  git -C "${METRICS_SOURCE}" switch --detach "${METRICS_COMMIT}"
 fi
 
 if ((UPDATE)); then

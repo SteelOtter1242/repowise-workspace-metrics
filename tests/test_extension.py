@@ -156,11 +156,27 @@ class CensusTests(unittest.TestCase):
             (workspace / ".repowise-workspace.yaml").write_text(json.dumps({
                 "version": 1, "repos": [{"alias": "pilot", "path": str(repo)}],
             }))
-            result = CliRunner().invoke(workspace_metrics, [
-                "generate", str(workspace), "--workspace", "--months", "2",
-                "--evidence-out", str(workspace / "snapshot.json"),
-                "--out", str(workspace / "snapshot.html"),
-            ])
+            run = subprocess.run
+
+            def silent_omission(args, **kwargs):
+                if args[0] == "cloc" and "--by-file" in args:
+                    listing = Path(next(arg.split("=", 1)[1] for arg in args if arg.startswith("--list-file=")))
+                    ignored = Path(next(arg.split("=", 1)[1] for arg in args if arg.startswith("--ignored=")))
+                    ignored.write_text("[{}]")
+                    counted = {
+                        path: {"code": 1, "comment": 0, "blank": 0, "language": "Python"}
+                        for path in listing.read_text().splitlines() if path.endswith("/app.py")
+                    }
+                    return subprocess.CompletedProcess(args, 0, json.dumps(counted), "")
+                return run(args, **kwargs)
+
+            # Reproduce cloc 1.98's response even when a newer cloc recognizes .inc.
+            with patch("repowise_workspace_metrics.census.subprocess.run", side_effect=silent_omission):
+                result = CliRunner().invoke(workspace_metrics, [
+                    "generate", str(workspace), "--workspace", "--months", "2",
+                    "--evidence-out", str(workspace / "snapshot.json"),
+                    "--out", str(workspace / "snapshot.html"),
+                ])
             self.assertEqual(result.exit_code, 0, result.output)
             self.assertIn("Warning: Counter coverage incomplete", result.output)
             document = json.loads((workspace / "snapshot.json").read_text())

@@ -195,6 +195,8 @@ class CensusTests(unittest.TestCase):
             self.assertIn("UNMEASURED", rendered)
             self.assertIn("2 historical periods also have counter gaps", rendered)
             self.assertLess(rendered.index('id="counter-warning"'), rendered.index('<details'))
+            self.assertIn('type="button" id="show-coverage"', rendered)
+            self.assertNotIn('href="#coverage-details"', rendered)
 
     def test_counter_failures_and_inconsistent_totals_still_abort(self) -> None:
         with tempfile.TemporaryDirectory() as folder:

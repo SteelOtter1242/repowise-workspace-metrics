@@ -14,6 +14,11 @@ from .artefacts import validate_artefacts
 from . import charts
 
 _SCRIPT = """
+document.getElementById("show-coverage")?.addEventListener("click", () => {
+  const details = document.getElementById("coverage-details");
+  details.open = true;
+  details.scrollIntoView({block: "start"});
+});
 const role = document.getElementById("role-filter");
 const extension = document.getElementById("extension-filter");
 function filterRows() {
@@ -113,7 +118,7 @@ def render_html(document: dict[str, Any]) -> str:
     coverage_warning = counter_warning(document)
     counter_notice = (
         f'<p class="notice" id="counter-warning" role="alert">{html.escape(coverage_warning)} '
-        '<a href="#coverage-details">Counter omission evidence</a></p>'
+        '<button type="button" id="show-coverage">Counter omission evidence</button></p>'
         if coverage_warning else ""
     )
     omitted_rows = [

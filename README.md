@@ -10,6 +10,8 @@ repository-wide artefact discovery, and one-action persistent report generation.
 Version 0.4.1 classifies executable agent-skill support as enablement.
 Version 0.4.2 preserves unexplained cloc omissions as explicit unmeasured gaps,
 with prominent report and CLI warnings instead of guessed counts.
+Version 0.4.3 opens counter-gap evidence directly without fragment navigation,
+so the control also works inside an opaque-origin sandboxed native viewer.
 
 ## Beta integration and VM installation
 
@@ -30,7 +32,7 @@ prerequisite patch is no longer needed on current beta:
 ```sh
 uv pip install --python /path/to/beta-env/bin/python /path/to/repowise-ifx
 uv pip install --python /path/to/beta-env/bin/python \
-  /path/to/repowise_workspace_metrics-0.4.2-py3-none-any.whl
+  /path/to/repowise_workspace_metrics-0.4.3-py3-none-any.whl
 /path/to/beta-env/bin/repowise workspace-metrics --help
 ```
 
@@ -83,7 +85,7 @@ Use a new environment path and install Python 3.11+ and cloc first if absent.
 uv venv --python 3.13 /path/to/new/metrics-env
 uv pip install --python /path/to/new/metrics-env/bin/python \
   'repowise @ git+https://github.com/SteelOtter1242/repowise-ifx.git@86caf6a53b4c39aba5579be4229b4cb442c6038f' \
-  'https://github.com/SteelOtter1242/repowise-workspace-metrics/releases/download/v0.4.2/repowise_workspace_metrics-0.4.2-py3-none-any.whl'
+  'https://github.com/SteelOtter1242/repowise-workspace-metrics/releases/download/v0.4.3/repowise_workspace_metrics-0.4.3-py3-none-any.whl'
 /path/to/new/metrics-env/bin/repowise workspace-metrics generate \
   /path/to/report-workspace --workspace --months 0 --include-artefacts \
   --evidence-out /path/to/new/pilot.json --out /path/to/new/pilot.html
@@ -107,7 +109,7 @@ unrelated shell interpreter:
 ```sh
 uv pip install --python /path/to/running-env/bin/python --upgrade \
   'repowise @ git+https://github.com/SteelOtter1242/repowise-ifx.git@86caf6a53b4c39aba5579be4229b4cb442c6038f' \
-  'https://github.com/SteelOtter1242/repowise-workspace-metrics/releases/download/v0.4.2/repowise_workspace_metrics-0.4.2-py3-none-any.whl'
+  'https://github.com/SteelOtter1242/repowise-workspace-metrics/releases/download/v0.4.3/repowise_workspace_metrics-0.4.3-py3-none-any.whl'
 /path/to/running-env/bin/repowise workspace-metrics --help
 ```
 
@@ -116,7 +118,7 @@ extension in that same tool environment:
 
 ```sh
 uv tool install --upgrade \
-  --with 'https://github.com/SteelOtter1242/repowise-workspace-metrics/releases/download/v0.4.2/repowise_workspace_metrics-0.4.2-py3-none-any.whl' \
+  --with 'https://github.com/SteelOtter1242/repowise-workspace-metrics/releases/download/v0.4.3/repowise_workspace_metrics-0.4.3-py3-none-any.whl' \
   'repowise @ git+https://github.com/SteelOtter1242/repowise-ifx.git@86caf6a53b4c39aba5579be4229b4cb442c6038f'
 repowise workspace-metrics --help
 ```

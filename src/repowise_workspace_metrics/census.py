@@ -145,25 +145,47 @@ def count_staged(rows: list[dict[str, Any]], stage: Path, scratch: Path) -> str:
     stderr = ""
     if staged:
         listing, ignored = scratch / "files.txt", scratch / "ignored.json"
-        listing.write_text("".join(path + "\n" for path in staged), encoding="utf-8")
-        result = subprocess.run(
-            ["cloc", f"--list-file={listing}", "--by-file", "--json", "--quiet",
-             "--skip-uniqueness", "--timeout=5", f"--ignored={ignored}"],
-            cwd=stage, capture_output=True, text=True, timeout=300, check=False,
-        )
-        if result.returncode:
-            raise RuntimeError(f"cloc failed ({result.returncode}): {result.stderr.strip()}")
-        stderr = result.stderr
-        counted = json.loads(result.stdout)
-        for path, counts in counted.items():
-            if path not in {"header", "SUM"}:
-                staged[path.removeprefix("./")]["cloc"] = counts
-        if ignored.exists():
-            omissions = {
-                item["file"].removeprefix("./"): item["reason"].strip()
-                for item in json.loads(ignored.read_text(encoding="utf-8"))
-                if item  # cloc 1.98 emits [{}] when no files were omitted.
-            }
+        with tempfile.TemporaryDirectory(prefix=".cloc-input-", dir=stage) as temporary:
+            paths = {}
+            for index, path in enumerate(staged):
+                counter_path = path
+                if any(char in '"\\' or ord(char) < 32 for char in path):
+                    # cloc 1.98 interpolates filenames into JSON without escaping them.
+                    name = "".join(
+                        "_" if char in '"\\' or ord(char) < 32 else char
+                        for char in PurePosixPath(path).name
+                    )
+                    target = Path(temporary) / str(index) / name
+                    target.parent.mkdir()
+                    os.link(stage / path, target)
+                    counter_path = target.relative_to(stage).as_posix()
+                paths[counter_path] = path
+            listing.write_text("".join(path + "\n" for path in paths), encoding="utf-8")
+            result = subprocess.run(
+                ["cloc", f"--list-file={listing}", "--by-file", "--json", "--quiet",
+                 "--skip-uniqueness", "--timeout=5", f"--ignored={ignored}"],
+                cwd=stage, capture_output=True, text=True, timeout=300, check=False,
+            )
+            if result.returncode:
+                raise RuntimeError(f"cloc failed ({result.returncode}): {result.stderr.strip()}")
+            stderr = result.stderr
+            try:
+                counted = json.loads(result.stdout)
+            except json.JSONDecodeError as exc:
+                raise ValueError(f"cloc returned invalid counts JSON: {exc.msg}") from exc
+            for path, counts in counted.items():
+                if path not in {"header", "SUM"}:
+                    staged[paths[path.removeprefix("./")]]["cloc"] = counts
+            if ignored.exists():
+                try:
+                    ignored_rows = json.loads(ignored.read_text(encoding="utf-8"))
+                except json.JSONDecodeError as exc:
+                    raise ValueError(f"cloc returned invalid omission JSON: {exc.msg}") from exc
+                omissions = {
+                    paths[item["file"].removeprefix("./")]: item["reason"].strip()
+                    for item in ignored_rows
+                    if item  # cloc 1.98 emits [{}] when no files were omitted.
+                }
     for row in rows:
         if row["mode"] == "120000":
             row["counter_status"] = "symlink_not_followed"

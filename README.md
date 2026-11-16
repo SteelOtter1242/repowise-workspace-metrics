@@ -14,6 +14,11 @@ Version 0.4.3 opens counter-gap evidence directly without fragment navigation,
 so the control also works inside an opaque-origin sandboxed native viewer.
 Version 0.4.4 adds an implementation : testing : product definition ratio based
 on nonblank physical text lines.
+Version 0.4.5 isolates filenames that cloc cannot escape in JSON (quotes,
+backslashes and control characters) behind temporary counter aliases. Counts
+and omission reasons are mapped back to the original evidence paths, including
+files present only in history. Ordinary paths and basename conventions remain
+unchanged. Files are not skipped, and malformed counter output still fails.
 
 ## Beta integration and VM installation
 
@@ -34,7 +39,7 @@ prerequisite patch is no longer needed on current beta:
 ```sh
 uv pip install --python /path/to/beta-env/bin/python /path/to/repowise-ifx
 uv pip install --python /path/to/beta-env/bin/python \
-  /path/to/repowise_workspace_metrics-0.4.3-py3-none-any.whl
+  /path/to/repowise_workspace_metrics-0.4.5-py3-none-any.whl
 /path/to/beta-env/bin/repowise workspace-metrics --help
 ```
 
@@ -122,10 +127,17 @@ local Contributors interface at the same repository snapshots. Add
 `--include-names` only for explicitly authorized sharing; emails are never
 exported. Without this opt-in, ownership remains unmeasured.
 
-JSON and HTML persist independently of a temporary report server. `generate`
-is the extension's report-generation action; a native Repowise web Metrics
-entry point and remote-VM acceptance are still pending. No GitHub/GitLab
-publication is implied by a local installation or commit.
+JSON and HTML persist independently of a temporary report server. The
+[native beta Metrics page](https://github.com/SteelOtter1242/repowise-ifx/pull/5)
+can import saved JSON through the authenticated repository interface; deploy
+the [matching Python/frontend bundle](https://github.com/SteelOtter1242/repowise-ifx/releases/tag/beta-metrics-20261116).
+Importing a `--months 0` snapshot does not collect history automatically.
+Use `workspace-metrics history --input snapshot.json --months N --out history.json`
+and import the new evidence to add trends without rebuilding an index. The
+saved checkout/configuration and cloc version must still match. Choose a window
+with a reachable month-end baseline before its first plotted month; the current
+collector does not fabricate earlier months or plot the initial partial month.
+No GitHub/GitLab publication is implied by local collection or import.
 
 ### Isolated VM pilot from GitHub
 
@@ -137,7 +149,7 @@ Use a new environment path and install Python 3.11+ and cloc first if absent.
 uv venv --python 3.13 /path/to/new/metrics-env
 uv pip install --python /path/to/new/metrics-env/bin/python \
   'repowise @ git+https://github.com/SteelOtter1242/repowise-ifx.git@86caf6a53b4c39aba5579be4229b4cb442c6038f' \
-  'https://github.com/SteelOtter1242/repowise-workspace-metrics/releases/download/v0.4.3/repowise_workspace_metrics-0.4.3-py3-none-any.whl'
+  'https://github.com/SteelOtter1242/repowise-workspace-metrics/releases/download/v0.4.5/repowise_workspace_metrics-0.4.5-py3-none-any.whl'
 /path/to/new/metrics-env/bin/repowise workspace-metrics generate \
   /path/to/report-workspace --workspace --months 0 --include-artefacts \
   --evidence-out /path/to/new/pilot.json --out /path/to/new/pilot.html
@@ -161,7 +173,7 @@ unrelated shell interpreter:
 ```sh
 uv pip install --python /path/to/running-env/bin/python --upgrade \
   'repowise @ git+https://github.com/SteelOtter1242/repowise-ifx.git@86caf6a53b4c39aba5579be4229b4cb442c6038f' \
-  'https://github.com/SteelOtter1242/repowise-workspace-metrics/releases/download/v0.4.3/repowise_workspace_metrics-0.4.3-py3-none-any.whl'
+  'https://github.com/SteelOtter1242/repowise-workspace-metrics/releases/download/v0.4.5/repowise_workspace_metrics-0.4.5-py3-none-any.whl'
 /path/to/running-env/bin/repowise workspace-metrics --help
 ```
 
@@ -170,7 +182,7 @@ extension in that same tool environment:
 
 ```sh
 uv tool install --upgrade \
-  --with 'https://github.com/SteelOtter1242/repowise-workspace-metrics/releases/download/v0.4.3/repowise_workspace_metrics-0.4.3-py3-none-any.whl' \
+  --with 'https://github.com/SteelOtter1242/repowise-workspace-metrics/releases/download/v0.4.5/repowise_workspace_metrics-0.4.5-py3-none-any.whl' \
   'repowise @ git+https://github.com/SteelOtter1242/repowise-ifx.git@86caf6a53b4c39aba5579be4229b4cb442c6038f'
 repowise workspace-metrics --help
 ```

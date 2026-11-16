@@ -27,6 +27,7 @@ class HistoryTests(unittest.TestCase):
         cls.write("src/a.py", "a = 1\n# original\n")
         cls.write("src/tests/test_a.py", "assert True\n")
         cls.write("src/deleted.py", "old = 1\n")
+        cls.write('src/old"historical.custom', "Unrecognized historical note\n")
         cls.write("src/pathrole.py", "print('moves into tests')\n")
         cls.write("src/blob.bin", b"\0original")
         cls.write("outside/no.py", "ignored = 1\n")
@@ -48,6 +49,7 @@ class HistoryTests(unittest.TestCase):
         cls.git("mv", "src/pathrole.py", "src/tests/pathrole.py")
         cls.role_rename = cls.commit("rename changes role", "2026-04-12T10:00:00+00:00")
         (cls.repo / "src/deleted.py").unlink()
+        (cls.repo / 'src/old"historical.custom').unlink()
         cls.write("src/blob.bin", b"\0changed")
         cls.latest = cls.commit("delete and binary", "2026-11-09T10:00:00+00:00")
         cls.write(".repowise/config.yaml", "analysis_paths: [src]\nexclude_patterns: []\n")
@@ -145,6 +147,19 @@ class HistoryTests(unittest.TestCase):
         self.assertEqual(len(self.counted_versions), len(set(self.counted_versions)))
         latest = {(row["path"], row["blob"], row["mode"]) for row in self.census["files"]}
         self.assertFalse(latest.intersection(self.counted_versions))
+
+    def test_historical_only_quoted_filename_keeps_its_original_evidence(self):
+        self.assertNotIn('src/old"historical.custom', {row["path"] for row in self.census["files"]})
+        first = self.history["points"][0]["workspace"]
+        self.assertTrue(any(
+            reason.startswith("language unknown") and count > 0
+            for reason, count in first["counter_coverage"]["omission_reasons"].items()
+        ))
+        deleted = next(
+            row for row in self.history["points"][-1]["workspace"]["flow"]["files"]
+            if row["path"] == 'src/old"historical.custom'
+        )
+        self.assertEqual((deleted["change_type"], deleted["deletions"]), ("deleted", 1))
 
     def test_validation_and_changed_configuration_failures(self):
         validate_history(self.census)

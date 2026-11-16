@@ -209,14 +209,58 @@ class CensusTests(unittest.TestCase):
             inconsistent = SimpleNamespace(returncode=0, stderr="", stdout=json.dumps({
                 "app.py": {"code": 2, "comment": 0, "blank": 0},
             }))
+            malformed = SimpleNamespace(returncode=0, stderr="", stdout='{"app.py":')
             for output, error, message in (
                 (failed, RuntimeError, "cloc failed"),
                 (inconsistent, ValueError, "Counter/physical line discrepancy"),
+                (malformed, ValueError, "cloc returned invalid counts JSON"),
             ):
                 with self.subTest(message=message):
                     with patch("repowise_workspace_metrics.census.subprocess.run", return_value=output):
                         with self.assertRaisesRegex(error, message):
                             count_staged([copy.deepcopy(row)], scratch, scratch)
+            (scratch / "ignored.json").write_text("[")
+            valid_counts = SimpleNamespace(returncode=0, stderr="", stdout=json.dumps({
+                "app.py": {"code": 1, "comment": 0, "blank": 0},
+            }))
+            with patch("repowise_workspace_metrics.census.subprocess.run", return_value=valid_counts):
+                with self.assertRaisesRegex(ValueError, "cloc returned invalid omission JSON"):
+                    count_staged([copy.deepcopy(row)], scratch, scratch)
+
+    def test_counter_preserves_counts_and_omissions_for_unsafe_json_filenames(self) -> None:
+        contents = {
+            'quoted"folder/code"sample.py': "# comment\nprint(1)\n\n",
+            "back\\slash/code\\sample.py": "# comment\nprint(1)\n\n",
+            "tab\tfolder/code\tsample.py": "# comment\nprint(1)\n\n",
+            'quoted"folder/note"old.custom': "Unrecognized note\n",
+            'quoted"folder/.gitignore': "cache/\n",
+            "normal/Makefile": "all:\n\t@echo hello\n",
+        }
+        with tempfile.TemporaryDirectory() as folder:
+            scratch = Path(folder)
+            stage = scratch / "source"
+            stage.mkdir()
+            rows = []
+            for name, text in contents.items():
+                target = stage / name
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_text(text)
+                rows.append({
+                    "stage_path": name, "path": name, "mode": "100644",
+                    "binary": False, "cloc": None, "physical_lines": len(text.splitlines()),
+                })
+            count_staged(rows, stage, scratch)
+            self.assertEqual([row["path"] for row in rows], list(contents))
+            for row in rows[:3]:
+                self.assertEqual(
+                    {key: row["cloc"][key] for key in ("code", "comment", "blank")},
+                    {"code": 1, "comment": 1, "blank": 1},
+                )
+            self.assertIsNone(rows[3]["cloc"])
+            self.assertIn("language unknown", rows[3]["counter_status"])
+            self.assertIn("Not_Code_Extension", rows[4]["counter_status"])
+            self.assertEqual(rows[5]["cloc"]["code"], 2)
+            self.assertTrue(all("stage_path" not in row for row in rows))
 
     def test_corrupt_evidence_and_html_injection_are_not_success_shaped(self) -> None:
         bad = copy.deepcopy(self.document)

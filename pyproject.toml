@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "repowise-workspace-metrics"
-version = "0.4.4"
+version = "0.4.5"
 description = "Committed-file composition evidence and offline reports for Repowise workspaces."
 license = "AGPL-3.0-or-later"
 requires-python = ">=3.11"

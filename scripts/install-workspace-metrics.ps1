@@ -11,11 +11,9 @@ $ErrorActionPreference = 'Stop'
 $RepoWiseUrl = 'https://github.com/SteelOtter1242/repowise-ifx.git'
 $RepoWiseSshUrl = 'git@github.com:SteelOtter1242/repowise-ifx.git'
 $RepoWiseBranch = 'beta'
-$WorkshopBetaCommit = '86caf6a53b4c39aba5579be4229b4cb442c6038f'
 $MetricsRepoUrl = 'https://github.com/SteelOtter1242/repowise-workspace-metrics.git'
 $MetricsRepoSshUrl = 'git@github.com:SteelOtter1242/repowise-workspace-metrics.git'
 $MetricsBranch = 'main'
-$MetricsCommit = '3d42e58c8d0636fca727ea5b9cd4a9f667c3fc2d'
 
 if ($Help) {
     @'
@@ -23,9 +21,9 @@ Usage: install-workspace-metrics.ps1 [-Update|-Upgrade]
 
 Install Repowise beta and the workspace-metrics extension into REPOWISE_HOME.
 This script can be downloaded and run without checking out the extension repo.
-The first install uses pinned snapshots. Re-running reuses the checkouts and
-environment. Pass -Update or -Upgrade to fast-forward Repowise to beta and
-the extension to main.
+The first install uses the latest Repowise beta and extension main. Re-running
+reuses the checkouts and environment. Pass -Update or -Upgrade to
+fast-forward both checkouts to their current branch heads.
 
 Set REPOWISE_HOME once to choose a different installation directory.
 '@
@@ -97,9 +95,6 @@ else {
         'clone', '--branch', $RepoWiseBranch, '--single-branch',
         $RepoWiseUrl, $RepoWiseSource
     )
-    Invoke-Checked -Command 'git' -ArgumentList @(
-        '-C', $RepoWiseSource, 'switch', '--detach', $WorkshopBetaCommit
-    )
 }
 
 if (Test-Path -LiteralPath (Join-Path $MetricsSource '.git')) {
@@ -126,9 +121,6 @@ else {
     Invoke-Checked -Command 'git' -ArgumentList @(
         'clone', '--branch', $MetricsBranch, '--single-branch',
         $MetricsRepoUrl, $MetricsSource
-    )
-    Invoke-Checked -Command 'git' -ArgumentList @(
-        '-C', $MetricsSource, 'switch', '--detach', $MetricsCommit
     )
 }
 

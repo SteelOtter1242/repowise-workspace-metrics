@@ -49,10 +49,11 @@ The extension does not replace the fork with upstream Repowise.
 
 ### Workshop installers
 
-Either installer can be downloaded and run by itself; it fetches the pinned
-workspace-metrics source into `REPOWISE_HOME`, so no extension-repository
-checkout is needed. The first install uses the verified beta snapshot above.
-Re-running reuses the checkouts and environment without downgrading them. Pass
+Either installer can be downloaded and run by itself; it fetches Repowise
+`beta` and workspace-metrics `main` into `REPOWISE_HOME`, so no existing
+repository checkout is needed. A fresh install uses the latest branch heads,
+which may differ from the verified snapshot above. Re-running reuses the
+checkouts and environment without updating or downgrading them. Pass
 `--update` / `-Update` (or `--upgrade` / `-Upgrade`) to fast-forward Repowise
 to `beta` and the extension to `main`. Both checkouts must be clean and their
 current commits must be ancestors of the corresponding remote branches.
@@ -85,8 +86,9 @@ Invoke-WebRequest 'https://raw.githubusercontent.com/SteelOtter1242/repowise-wor
 & (Join-Path $env:REPOWISE_HOME 'install-workspace-metrics.ps1') -Update
 ```
 
-Replace previously downloaded installers once: older versions do not update the
-extension. Downloading the script does not itself change an existing install.
+Replace previously downloaded installers once: older versions may install pinned
+snapshots or may not update the extension. Downloading the script does not
+itself change an existing install.
 
 `REPOWISE_HOME` is optional. Its defaults are
 `$HOME/.local/share/repowise-workshop` on Unix and

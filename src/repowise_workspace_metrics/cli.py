@@ -10,7 +10,7 @@ from pathlib import Path
 import click
 import yaml
 
-from .census import collect, validate
+from .census import collect, counter_warning, validate
 from .render import render_html
 from .ownership import collect_api, enrich, validate_ownership
 from .artefacts import collect_artefacts, validate_artefacts
@@ -43,6 +43,8 @@ def collect_command(path: Path, workspace: bool, out: Path) -> None:
     except (OSError, ValueError, RuntimeError, KeyError, TypeError, yaml.YAMLError, subprocess.TimeoutExpired) as exc:
         raise click.ClickException(str(exc)) from exc
     click.echo(f"Wrote census: {out}; {document['union']['files']} unique paths", err=True)
+    if warning := counter_warning(document):
+        click.echo(f"Warning: {warning}", err=True)
     if document["cloc_stderr"]:
         click.echo(f"cloc diagnostics: {document['cloc_stderr']}", err=True)
 
@@ -67,6 +69,8 @@ def report_command(input_path: Path, fmt: str, out: Path) -> None:
     except (OSError, ValueError, KeyError, TypeError, AttributeError) as exc:
         raise click.ClickException(f"Cannot render census: {exc}") from exc
     click.echo(f"Wrote {fmt} report: {out}", err=True)
+    if warning := counter_warning(document):
+        click.echo(f"Warning: {warning}", err=True)
 
 
 @workspace_metrics.command("ownership")
@@ -125,6 +129,8 @@ def history_command(input_path: Path, months: int, out: Path) -> None:
     except (OSError, ValueError, RuntimeError, KeyError, TypeError, yaml.YAMLError, subprocess.TimeoutExpired) as exc:
         raise click.ClickException(f"Cannot measure history: {exc}") from exc
     click.echo(f"Wrote historical census: {out}; {len(document['history']['points'])} periods", err=True)
+    if warning := counter_warning(document):
+        click.echo(f"Warning: {warning}", err=True)
 
 
 @workspace_metrics.command("artefacts")
@@ -180,3 +186,5 @@ def generate_command(path: Path, workspace: bool, months: int, include_artefacts
     except (OSError, ValueError, RuntimeError, KeyError, TypeError, AttributeError, URLError, yaml.YAMLError, subprocess.TimeoutExpired) as exc:
         raise click.ClickException(f"Cannot generate metrics report: {exc}") from exc
     click.echo(f"Wrote metrics report: {out}; saved evidence: {evidence_out}", err=True)
+    if warning := counter_warning(document):
+        click.echo(f"Warning: {warning}", err=True)

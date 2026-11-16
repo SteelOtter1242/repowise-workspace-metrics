@@ -175,11 +175,28 @@ def count_staged(rows: list[dict[str, Any]], stage: Path, scratch: Path) -> str:
                 raise ValueError(f"Counter/physical line discrepancy: {row['path']}")
         else:
             path = row["stage_path"]
-            if path not in omissions:
-                raise ValueError(f"cloc omitted a file without an explanation: {row['path']}")
-            row["counter_status"] = omissions[path]
+            row["counter_status"] = omissions[path] if omissions.get(path) else "unreported_cloc_omission"
         row.pop("stage_path", None)
     return stderr
+
+
+def counter_warning(document: Mapping[str, Any]) -> str:
+    totals = document["union"]
+    missing = totals["text_files"] - totals["cloc_files"]
+    historical_gaps = sum(
+        point["workspace"]["union"]["text_files"] > point["workspace"]["union"]["cloc_files"]
+        for point in document.get("history", {}).get("points", [])
+    )
+    if not missing and not historical_gaps:
+        return ""
+    history_note = f" {historical_gaps} historical periods also have counter gaps." if historical_gaps else ""
+    return (
+        f"Counter coverage incomplete: code/comment split is UNMEASURED for {missing} "
+        f"of {totals['text_files']} text files in the latest snapshot.{history_note} "
+        "Physical and blank lines are retained. Code/comment totals and source ratios cover "
+        "only counted files; missing counts are not measured zeros. "
+        "See counter omission evidence for affected paths and statuses."
+    )
 
 
 def collect(workspace: Path) -> dict[str, Any]:

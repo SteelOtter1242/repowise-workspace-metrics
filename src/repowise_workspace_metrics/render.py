@@ -7,7 +7,7 @@ import hashlib
 import html
 from typing import Any
 
-from .census import validate
+from .census import counter_warning, validate
 from .ownership import validate_ownership
 from .purposes import source_file
 from .artefacts import validate_artefacts
@@ -110,6 +110,17 @@ def render_html(document: dict[str, Any]) -> str:
         )
     digest = base64.b64encode(hashlib.sha256(_SCRIPT.encode()).digest()).decode()
     warning = html.escape(document.get("cloc_stderr", ""))
+    coverage_warning = counter_warning(document)
+    counter_notice = (
+        f'<p class="notice" id="counter-warning" role="alert">{html.escape(coverage_warning)} '
+        '<a href="#coverage-details">Counter omission evidence</a></p>'
+        if coverage_warning else ""
+    )
+    omitted_rows = [
+        [row["path"], row["counter_status"], number(row["physical_lines"]), number(row["blank_lines"])]
+        for row in document["files"]
+        if row["mode"] != "120000" and not row["binary"] and row["cloc"] is None
+    ]
     chart_sections = charts.sections(document)
     ownership_section = ""
     ownership_notice = "Ownership, agent provenance and observed harness loading are unmeasured."
@@ -173,6 +184,7 @@ table{{border-collapse:collapse;width:100%;font-size:13px}}td,th{{padding:8px;te
 <h1>Repowise workspace metrics</h1>
 <p class="muted">Chart-first report · census captured {html.escape(document['generated_at'])}</p>
 <p class="notice">Real census evidence only. {ownership_notice} No synthetic timelines or owner identities are included.</p>
+{counter_notice}
 <section id="snapshot-summary"><div class="cards">
 <div><strong id="card-files">{number(union['files'])}</strong>Included paths</div>
 <div><strong id="card-text">{number(union['physical_lines'])}</strong>Physical text lines</div>
@@ -205,6 +217,9 @@ Physical blank lines: {number(union['blank_lines'])}. Bytes: {number(union['byte
 <details class="evidence" id="coverage-details"><summary>Coverage and interpretation evidence</summary>
 <section><h2>Coverage and interpretation limits</h2>
 {table(['Counter omission reason','Text files'],[[key,number(n)] for key,n in document['cloc_omission_reasons'].items()])}
+{table(['Uncounted path','Counter status','Physical lines','Physical blank'], omitted_rows)}
+<p>unreported_cloc_omission means cloc returned neither counts nor an omission reason.
+The code/comment split is unmeasured, not zero; independently measured physical and blank lines are retained.</p>
 <p>Cloc {html.escape(document['method']['cloc_version'])}; content deduplication disabled. Five-second filter timeout. Mixed code/comment lines are not separately measured.
 Physical lines use LF-delimited bytes and count an unterminated final line. Binary detection uses NUL in the first 8,192 bytes; symlink targets are not followed. Vendored/generated classification is not complete. Playbook filenames require purpose review.</p>
 <p>Working changes and untracked files are excluded. Explicit exclusions may omit documentation and product/agent artefacts. Census collection and saved-evidence rendering do not open Repowise indexes. Ownership exports use Repowise's report lifecycle or public Contributors API; they do not rebuild indexes.</p>

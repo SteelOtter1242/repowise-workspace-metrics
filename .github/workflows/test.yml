@@ -20,7 +20,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y cloc
           python -m pip install \
-            'repowise @ git+https://github.com/SteelOtter1242/repowise-ifx.git@9a9519f84602f74fbc2b3908fb4d55466e4c5598' \
+            'repowise @ git+https://github.com/SteelOtter1242/repowise-ifx.git@86caf6a53b4c39aba5579be4229b4cb442c6038f' \
             .
       - name: Test plugin, census, ownership, purpose and history
         run: |

@@ -16,7 +16,7 @@ from types import SimpleNamespace
 import pathspec
 from click.testing import CliRunner
 
-from repowise_workspace_metrics.census import classify, collect, line_counts, scope_reason, validate
+from repowise_workspace_metrics.census import classify, collect, count_staged, line_counts, scope_reason, validate
 from repowise_workspace_metrics.cli import workspace_metrics, write_output
 from repowise_workspace_metrics.compat import helpers
 from repowise_workspace_metrics.render import render_html
@@ -136,6 +136,69 @@ class CensusTests(unittest.TestCase):
         with patch("repowise_workspace_metrics.compat.version", return_value="0.62.0"):
             with self.assertRaisesRegex(RuntimeError, "No substitute"):
                 helpers()
+
+    def test_unreported_counter_gap_retains_physical_lines_and_warns(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            workspace = Path(folder)
+            repo = workspace / "repo"
+            repo.mkdir()
+            (repo / "route.inc").write_text("# Forward a route\nproxy_set_header X-Prefix /sermons;\n\n")
+            (repo / "app.py").write_text("print('hello')\n")
+            for args in (("init", "-q"), ("add", "."), (
+                "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid",
+                "commit", "-qm", "Counter gap fixture",
+            )):
+                subprocess.run(
+                    ["git", *args], cwd=repo, check=True, capture_output=True,
+                    env={**os.environ, "GIT_AUTHOR_DATE": "2025-11-01T10:00:00+00:00",
+                         "GIT_COMMITTER_DATE": "2025-11-01T10:00:00+00:00"},
+                )
+            (workspace / ".repowise-workspace.yaml").write_text(json.dumps({
+                "version": 1, "repos": [{"alias": "pilot", "path": str(repo)}],
+            }))
+            result = CliRunner().invoke(workspace_metrics, [
+                "generate", str(workspace), "--workspace", "--months", "2",
+                "--evidence-out", str(workspace / "snapshot.json"),
+                "--out", str(workspace / "snapshot.html"),
+            ])
+            self.assertEqual(result.exit_code, 0, result.output)
+            self.assertIn("Warning: Counter coverage incomplete", result.output)
+            document = json.loads((workspace / "snapshot.json").read_text())
+            validate(document)
+            row = next(row for row in document["files"] if row["path"] == "route.inc")
+            self.assertEqual((row["physical_lines"], row["blank_lines"]), (3, 1))
+            self.assertIsNone(row["cloc"])
+            self.assertEqual(row["counter_status"], "unreported_cloc_omission")
+            self.assertEqual(document["cloc_omission_reasons"]["unreported_cloc_omission"], 1)
+            self.assertEqual(document["union"]["cloc_code"], 1)
+            for point in document["history"]["points"]:
+                self.assertEqual(
+                    point["workspace"]["counter_coverage"]["omission_reasons"]["unreported_cloc_omission"], 1,
+                )
+            rendered = (workspace / "snapshot.html").read_text()
+            self.assertIn("UNMEASURED", rendered)
+            self.assertIn("2 historical periods also have counter gaps", rendered)
+            self.assertLess(rendered.index('id="counter-warning"'), rendered.index('<details'))
+
+    def test_counter_failures_and_inconsistent_totals_still_abort(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            scratch = Path(folder)
+            row = {
+                "stage_path": "app.py", "path": "app.py", "mode": "100644",
+                "binary": False, "cloc": None, "physical_lines": 1,
+            }
+            failed = SimpleNamespace(returncode=1, stderr="counter failure", stdout="")
+            inconsistent = SimpleNamespace(returncode=0, stderr="", stdout=json.dumps({
+                "app.py": {"code": 2, "comment": 0, "blank": 0},
+            }))
+            for output, error, message in (
+                (failed, RuntimeError, "cloc failed"),
+                (inconsistent, ValueError, "Counter/physical line discrepancy"),
+            ):
+                with self.subTest(message=message):
+                    with patch("repowise_workspace_metrics.census.subprocess.run", return_value=output):
+                        with self.assertRaisesRegex(error, message):
+                            count_staged([copy.deepcopy(row)], scratch, scratch)
 
     def test_corrupt_evidence_and_html_injection_are_not_success_shaped(self) -> None:
         bad = copy.deepcopy(self.document)

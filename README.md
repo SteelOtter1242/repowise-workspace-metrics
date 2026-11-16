@@ -8,20 +8,20 @@ Version 0.3.2 shows the five requested volume series without a ratio overlay.
 Version 0.4.0 adds versioned purpose evidence, explicit agentic stock/flow,
 repository-wide artefact discovery, and one-action persistent report generation.
 Version 0.4.1 classifies executable agent-skill support as enablement.
+Version 0.4.2 preserves unexplained cloc omissions as explicit unmeasured gaps,
+with prominent report and CLI warnings instead of guessed counts.
 
 ## Beta integration and VM installation
 
-Public integration prerequisite: [repowise-ifx beta PR #3](https://github.com/SteelOtter1242/repowise-ifx/pull/3)
-is merged. Install from `repowise-ifx@beta`; the first beta merge containing the
-helper is `cf324dbddf05009d6a59e85af924690f5e99ec06`.
+The scope prerequisite was originally merged in [beta PR #3](https://github.com/SteelOtter1242/repowise-ifx/pull/3).
+Beta later diverged from that merge; [repair PR #4](https://github.com/SteelOtter1242/repowise-ifx/pull/4)
+restored the helper. The verified beta installation below is pinned to repaired
+merge `86caf6a53b4c39aba5579be4229b4cb442c6038f`, not a moving branch name.
 
-The verified fork target is `SteelOtter1242/repowise-ifx`, `beta` base
-`9404029c184d695d85b8174382ae0b2eb2d9f6f7`, **plus** scope-interface commit
-`9a9519f84` on the `metrics-extension-scope` branch.
-Beta snapshots before that merge lack `repowise.core.repo_config.analysis_paths`:
-collection fails explicitly, despite their package also being version 0.61.0.
-The prerequisite exposes the existing literal-scope validator; it does not
-change indexing/traversal or rebuild indexes.
+The required interface is `repowise.core.repo_config.analysis_paths`.
+Package version 0.61.0 or working command help alone does not establish that it
+exists. The prerequisite is read-only and does not change indexing/traversal
+or rebuild indexes.
 
 For a managed beta checkout, update it through your normal deployment procedure,
 then install it and the metrics wheel into the **same** environment. The
@@ -30,7 +30,7 @@ prerequisite patch is no longer needed on current beta:
 ```sh
 uv pip install --python /path/to/beta-env/bin/python /path/to/repowise-ifx
 uv pip install --python /path/to/beta-env/bin/python \
-  /path/to/repowise_workspace_metrics-0.4.1-py3-none-any.whl
+  /path/to/repowise_workspace_metrics-0.4.2-py3-none-any.whl
 /path/to/beta-env/bin/repowise workspace-metrics --help
 ```
 
@@ -54,14 +54,11 @@ No history is fetched or fabricated.
 For a single indexed repository without workspace membership, create a separate
 report-workspace directory and place a `.repowise-workspace.yaml` there:
 
-```yaml
-version: 1
-default_repo: pilot
-repos:
-  - alias: pilot
-    path: /absolute/path/to/existing/repository
+```json
+{"version":1,"default_repo":"pilot","repos":[{"alias":"pilot","path":"/absolute/path/to/existing/repository"}]}
 ```
 
+JSON syntax is valid YAML and avoids indentation damage when pasted.
 This declares metrics membership only; it does not initialize/rebuild an index.
 The repository's own `.repowise/config.yaml` still defines its analysis paths and
 exclusions. An indexed repository alone is not proof of complete Git history.
@@ -85,15 +82,15 @@ Use a new environment path and install Python 3.11+ and cloc first if absent.
 ```sh
 uv venv --python 3.13 /path/to/new/metrics-env
 uv pip install --python /path/to/new/metrics-env/bin/python \
-  'repowise @ git+https://github.com/SteelOtter1242/repowise-ifx.git@beta' \
-  'https://github.com/SteelOtter1242/repowise-workspace-metrics/releases/download/v0.4.1/repowise_workspace_metrics-0.4.1-py3-none-any.whl'
+  'repowise @ git+https://github.com/SteelOtter1242/repowise-ifx.git@86caf6a53b4c39aba5579be4229b4cb442c6038f' \
+  'https://github.com/SteelOtter1242/repowise-workspace-metrics/releases/download/v0.4.2/repowise_workspace_metrics-0.4.2-py3-none-any.whl'
 /path/to/new/metrics-env/bin/repowise workspace-metrics generate \
   /path/to/report-workspace --workspace --months 0 --include-artefacts \
   --evidence-out /path/to/new/pilot.json --out /path/to/new/pilot.html
 ```
 
-For a reproducible deployment, replace `beta` with a verified full beta commit
-including the prerequisite; do not silently substitute upstream Repowise. Start with a snapshot,
+Keep the verified full commit pin unless validating a newer beta revision;
+do not silently substitute upstream Repowise. Start with a snapshot,
 then generate new output filenames with `--months 12` after confirming complete
 history. Ownership is optional and requires an authorized loopback interface
 reachable from the same execution environment.
@@ -109,8 +106,8 @@ unrelated shell interpreter:
 
 ```sh
 uv pip install --python /path/to/running-env/bin/python --upgrade \
-  'repowise @ git+https://github.com/SteelOtter1242/repowise-ifx.git@beta' \
-  'https://github.com/SteelOtter1242/repowise-workspace-metrics/releases/download/v0.4.1/repowise_workspace_metrics-0.4.1-py3-none-any.whl'
+  'repowise @ git+https://github.com/SteelOtter1242/repowise-ifx.git@86caf6a53b4c39aba5579be4229b4cb442c6038f' \
+  'https://github.com/SteelOtter1242/repowise-workspace-metrics/releases/download/v0.4.2/repowise_workspace_metrics-0.4.2-py3-none-any.whl'
 /path/to/running-env/bin/repowise workspace-metrics --help
 ```
 
@@ -119,8 +116,8 @@ extension in that same tool environment:
 
 ```sh
 uv tool install --upgrade \
-  --with 'https://github.com/SteelOtter1242/repowise-workspace-metrics/releases/download/v0.4.1/repowise_workspace_metrics-0.4.1-py3-none-any.whl' \
-  'repowise @ git+https://github.com/SteelOtter1242/repowise-ifx.git@beta'
+  --with 'https://github.com/SteelOtter1242/repowise-workspace-metrics/releases/download/v0.4.2/repowise_workspace_metrics-0.4.2-py3-none-any.whl' \
+  'repowise @ git+https://github.com/SteelOtter1242/repowise-ifx.git@86caf6a53b4c39aba5579be4229b4cb442c6038f'
 repowise workspace-metrics --help
 ```
 
@@ -370,6 +367,17 @@ identities are retained per file. Binary detection is the NUL-in-first-8192-byte
 heuristic, not encoding-aware certification. Cloc filter timeout is five seconds;
 process timeout is 300 seconds, with diagnostics exposed. Mixed code/comment
 lines are unavailable. Invalid counter totals fail rather than publishing success.
+
+If cloc successfully exits but returns neither counts nor an omission reason
+(for example, cloc 1.98 with a non-PHP/non-Pascal `.inc` file), the file remains
+in the population with `cloc: null` and `counter_status: unreported_cloc_omission`.
+Its physical/blank lines remain independently measured; its code/comment split
+is **unmeasured**, never inferred or converted into measured zeros. CLI output
+and an expanded notice above the charts warn about incomplete counter coverage,
+including historical periods. Collapsed evidence lists affected latest paths,
+statuses and physical lines. Code/comment totals and source ratios describe only
+the counted subset. Counter subprocess failures, malformed output and
+counter/physical-line discrepancies still fail explicitly.
 
 Role rules are provisional. Fixture data is not source LOC. A playbook filename
 is role-unknown pending purpose review, and Cadence SKILL source is not agent

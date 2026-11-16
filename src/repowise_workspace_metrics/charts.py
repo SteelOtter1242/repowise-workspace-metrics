@@ -524,9 +524,12 @@ function renderSnapshot(){
   const selectedFiles=selectedRoles.reduce((s,r)=>s+stock(v,r,"files"),0),selectedCounted=selectedRoles.reduce((s,r)=>s+stock(v,r,"cloc_files"),0);
   $("line-kind-note").textContent=`Latest selected-source coverage: ${fmt(selectedCounted)} / ${fmt(selectedFiles)} files counted. Per-period counter coverage is retained in JSON; unsupported source is not included in observed LOC.`;
   $("card-files").textContent=fmt(v.union.files);$("card-text").textContent=fmt(v.union.physical_lines);
-  $("card-impl").textContent=fmt(stock(v,"production_source"));$("card-tests").textContent=fmt(stock(v,"test_source"));
-  $("card-ratio").textContent=stock(v,"test_source")?fmt(stock(v,"production_source")/stock(v,"test_source"))+" : 1":"Undefined (no counted test LOC)";
-  $("source-coverage").textContent=`${fmt(counted)} / ${fmt(files)} classified source files counted. Ratio excludes fixtures; unsupported and unknown-role files may contain source. This is not test coverage.`;
+  const implementation=sumPurpose(v,"product_implementation"),testing=sumPurpose(v,"product_verification");
+  const definition=sumPurpose(v,"product_definition")+sumPurpose(v,"product_definition_candidate");
+  $("card-impl").textContent=fmt(implementation);$("card-tests").textContent=fmt(testing);$("card-definition").textContent=fmt(definition);
+  const ratioPart=value=>value>0&&value<0.01?"<0.01":value.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+  $("card-ratio").textContent=testing?`${ratioPart(implementation/testing)} : 1 : ${ratioPart(definition/testing)}`:"Undefined (no testing nonblank lines)";
+  $("source-coverage").textContent=`${fmt(counted)} / ${fmt(files)} classified source files counted by cloc for code-only charts.`;
   $("census-coverage").textContent=`${fmt(v.union.cloc_files)} / ${fmt(v.union.text_files)} text files counted by cloc. ${fmt(v.union.binary_files)} binary candidates and ${fmt(v.union.symlinks)} symlinks have no line denominator. ${fmt(v.union.blank_lines)} physical blank lines; ${fmt(v.union.bytes)} bytes.`;
   const metric=$("purpose-weight").value;
   horizontalBars("purpose-chart","Latest purpose composition",Object.entries(labels).map(([key,label])=>({

@@ -12,6 +12,8 @@ Version 0.4.2 preserves unexplained cloc omissions as explicit unmeasured gaps,
 with prominent report and CLI warnings instead of guessed counts.
 Version 0.4.3 opens counter-gap evidence directly without fragment navigation,
 so the control also works inside an opaque-origin sandboxed native viewer.
+Version 0.4.4 adds an implementation : testing : product definition ratio based
+on nonblank physical text lines.
 
 ## Beta integration and VM installation
 
@@ -45,32 +47,41 @@ The extension does not replace the fork with upstream Repowise.
 Either installer can be downloaded and run by itself; it fetches the pinned
 workspace-metrics source into `REPOWISE_HOME`, so no extension-repository
 checkout is needed. The first install uses the verified beta snapshot above.
-Re-running reuses the checkouts and environment; pass `--update` / `-Update`
-only when you want to fast-forward Repowise to the latest `beta`. The update is
-rejected before changing Repowise source if that checkout has local changes.
-After an update, the script verifies Repowise's version and required helpers;
-it stops with an error if the new beta is incompatible. Existing indexes are
-not deleted.
+Re-running reuses the checkouts and environment without downgrading them. Pass
+`--update` / `-Update` (or `--upgrade` / `-Upgrade`) to fast-forward Repowise
+to `beta` and the extension to `main`. Both checkouts must be clean and their
+current commits must be ancestors of the corresponding remote branches.
+The installer verifies Repowise's version and required helpers; it stops with
+an error if the new beta is incompatible. Existing indexes are not deleted.
 
 On Linux or macOS:
 
 ```sh
 export REPOWISE_HOME="$HOME/.local/share/repowise-workshop"
-bash scripts/install-workspace-metrics.sh
+mkdir -p "$REPOWISE_HOME"
+curl -fsSL https://raw.githubusercontent.com/SteelOtter1242/repowise-workspace-metrics/main/scripts/install-workspace-metrics.sh \
+  -o "$REPOWISE_HOME/install-workspace-metrics.sh"
+bash "$REPOWISE_HOME/install-workspace-metrics.sh"
 
-# Later, only when you want the latest beta:
-bash scripts/install-workspace-metrics.sh --update
+# Later, update both Repowise and workspace-metrics:
+bash "$REPOWISE_HOME/install-workspace-metrics.sh" --update
 ```
 
 On Windows, from PowerShell without WSL:
 
 ```powershell
 $env:REPOWISE_HOME = Join-Path $env:LOCALAPPDATA 'RepowiseWorkshop'
-.\scripts\install-workspace-metrics.ps1
+New-Item -ItemType Directory -Force -Path $env:REPOWISE_HOME | Out-Null
+Invoke-WebRequest 'https://raw.githubusercontent.com/SteelOtter1242/repowise-workspace-metrics/main/scripts/install-workspace-metrics.ps1' `
+  -OutFile (Join-Path $env:REPOWISE_HOME 'install-workspace-metrics.ps1')
+& (Join-Path $env:REPOWISE_HOME 'install-workspace-metrics.ps1')
 
-# Later, only when you want the latest beta:
-.\scripts\install-workspace-metrics.ps1 -Update
+# Later, update both Repowise and workspace-metrics:
+& (Join-Path $env:REPOWISE_HOME 'install-workspace-metrics.ps1') -Update
 ```
+
+Replace previously downloaded installers once: older versions do not update the
+extension. Downloading the script does not itself change an existing install.
 
 `REPOWISE_HOME` is optional. Its defaults are
 `$HOME/.local/share/repowise-workshop` on Unix and
@@ -78,7 +89,7 @@ $env:REPOWISE_HOME = Join-Path $env:LOCALAPPDATA 'RepowiseWorkshop'
 GitHub and the Python package index are required; `uv` installs Python 3.11.
 `cloc` is required when collecting metrics. If PowerShell's execution policy
 blocks the script, invoke it for this process with
-`powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\install-workspace-metrics.ps1`
+`powershell -NoProfile -ExecutionPolicy Bypass -File "$env:REPOWISE_HOME\install-workspace-metrics.ps1"`
 rather than changing the machine-wide policy.
 
 ### One-action persistent report
@@ -280,6 +291,13 @@ Chart points/categories open measured period or ownership drill-downs; detailed
 lists stay collapsed until requested. Top-extension and top-owner groupings retain
 an exact remainder rather than dropping the tail. A census without history still
 shows snapshot charts but does not invent a historical line or edit series.
+
+The snapshot summary shows implementation : testing : product definition
+normalized to testing, using physical nonblank text lines for all three
+purposes (including comments). It is undefined when testing has no nonblank
+lines. Purpose classification is heuristic, fixtures are excluded, and unknown
+purposes may contain relevant material. This is not test coverage. The separate
+implementation/testing trend uses cloc code-only lines instead.
 
 History uses immutable local Git objects under frozen census scopes, not working
 files or database discovery. It records UTC month cutoffs, a first-parent/mainline

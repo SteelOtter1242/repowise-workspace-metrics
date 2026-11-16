@@ -301,6 +301,56 @@ class CensusTests(unittest.TestCase):
         self.assertNotIn("</script><img", encoded)
         self.assertIn("\\u003c/script\\u003e", encoded)
 
+    def test_summary_ratio_uses_nonblank_lines_for_three_purposes(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            workspace = Path(folder)
+            for name, files in {
+                "first": {
+                    "src/app.py": "# comment\none = 1\n \nother = 2\n",
+                    "tests/test_app.py": "# comment\nassert True\n\n",
+                    "docs/vision.md": "# Vision\n\nProduct intent\n",
+                    "tests/fixtures/example.py": "fixture\nfixture\n",
+                },
+                "second": {"src/other.py": "value = 1\n"},
+            }.items():
+                repo = workspace / name
+                repo.mkdir()
+                subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
+                for path, content in files.items():
+                    target = repo / path
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    target.write_text(content)
+                subprocess.run(["git", "add", "."], cwd=repo, check=True)
+                subprocess.run(
+                    ["git", "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid",
+                     "commit", "-qm", "Fixture"], cwd=repo, check=True,
+                )
+            (workspace / ".repowise-workspace.yaml").write_text(
+                "version: 1\ndefault_repo: first\nrepos:\n"
+                "  - {alias: first, path: first}\n  - {alias: second, path: second}\n"
+            )
+            report = render_html(collect(workspace))
+            self.assertIn('<strong id="card-impl">4</strong>', report)
+            self.assertIn('<strong id="card-tests">2</strong>', report)
+            self.assertIn('<strong id="card-definition">2</strong>', report)
+            self.assertIn('<strong id="card-ratio">2.00 : 1 : 1.00</strong>', report)
+
+            repo = workspace / "first"
+            (repo / "tests/test_app.py").write_text("assert True\n" * 300)
+            subprocess.run(["git", "add", "."], cwd=repo, check=True)
+            subprocess.run(
+                ["git", "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid",
+                 "commit", "-qm", "More tests"], cwd=repo, check=True,
+            )
+            report = render_html(collect(workspace))
+            self.assertIn('<strong id="card-ratio">0.01 : 1 : &lt;0.01</strong>', report)
+
+            (workspace / ".repowise-workspace.yaml").write_text(
+                "version: 1\ndefault_repo: second\nrepos:\n  - {alias: second, path: second}\n"
+            )
+            report = render_html(collect(workspace))
+            self.assertIn('<strong id="card-ratio">Undefined (no testing nonblank lines)</strong>', report)
+
     def test_agentic_purposes_distinguish_instructions_candidates_and_false_positives(self) -> None:
         _, is_test = helpers()
         cases = [

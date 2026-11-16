@@ -1,5 +1,6 @@
 [CmdletBinding()]
 param(
+    [Alias('Upgrade')]
     [switch]$Update,
     [switch]$Help
 )
@@ -18,12 +19,13 @@ $MetricsCommit = '3d42e58c8d0636fca727ea5b9cd4a9f667c3fc2d'
 
 if ($Help) {
     @'
-Usage: install-workspace-metrics.ps1 [-Update]
+Usage: install-workspace-metrics.ps1 [-Update|-Upgrade]
 
 Install Repowise beta and the workspace-metrics extension into REPOWISE_HOME.
 This script can be downloaded and run without checking out the extension repo.
 The first install uses pinned snapshots. Re-running reuses the checkouts and
-environment. Pass -Update to fast-forward Repowise to the latest beta.
+environment. Pass -Update or -Upgrade to fast-forward Repowise to beta and
+the extension to main.
 
 Set REPOWISE_HOME once to choose a different installation directory.
 '@
@@ -86,29 +88,6 @@ if (Test-Path -LiteralPath $GitDirectory) {
         throw "Checkout has local changes; commit or stash them before continuing: $RepoWiseSource"
     }
 
-    if ($Update) {
-        Invoke-Checked -Command 'git' -ArgumentList @(
-            '-C', $RepoWiseSource, 'fetch', 'origin', $RepoWiseBranch
-        )
-        $LocalBranch = & git -C $RepoWiseSource branch --list $RepoWiseBranch
-        if ($LASTEXITCODE -ne 0) {
-            throw 'Could not inspect local beta branch.'
-        }
-        if ($LocalBranch) {
-            Invoke-Checked -Command 'git' -ArgumentList @(
-                '-C', $RepoWiseSource, 'switch', $RepoWiseBranch
-            )
-        }
-        else {
-            Invoke-Checked -Command 'git' -ArgumentList @(
-                '-C', $RepoWiseSource, 'switch', '--create', $RepoWiseBranch,
-                '--track', "origin/$RepoWiseBranch"
-            )
-        }
-        Invoke-Checked -Command 'git' -ArgumentList @(
-            '-C', $RepoWiseSource, 'merge', '--ff-only', "origin/$RepoWiseBranch"
-        )
-    }
 }
 else {
     if (Test-Path -LiteralPath $RepoWiseSource) {
@@ -121,17 +100,6 @@ else {
     Invoke-Checked -Command 'git' -ArgumentList @(
         '-C', $RepoWiseSource, 'switch', '--detach', $WorkshopBetaCommit
     )
-    if ($Update) {
-        Invoke-Checked -Command 'git' -ArgumentList @(
-            '-C', $RepoWiseSource, 'fetch', 'origin', $RepoWiseBranch
-        )
-        Invoke-Checked -Command 'git' -ArgumentList @(
-            '-C', $RepoWiseSource, 'switch', $RepoWiseBranch
-        )
-        Invoke-Checked -Command 'git' -ArgumentList @(
-            '-C', $RepoWiseSource, 'merge', '--ff-only', "origin/$RepoWiseBranch"
-        )
-    }
 }
 
 if (Test-Path -LiteralPath (Join-Path $MetricsSource '.git')) {
@@ -159,14 +127,31 @@ else {
         'clone', '--branch', $MetricsBranch, '--single-branch',
         $MetricsRepoUrl, $MetricsSource
     )
+    Invoke-Checked -Command 'git' -ArgumentList @(
+        '-C', $MetricsSource, 'switch', '--detach', $MetricsCommit
+    )
 }
 
-Invoke-Checked -Command 'git' -ArgumentList @(
-    '-C', $MetricsSource, 'fetch', 'origin', $MetricsBranch
-)
-Invoke-Checked -Command 'git' -ArgumentList @(
-    '-C', $MetricsSource, 'switch', '--detach', $MetricsCommit
-)
+if ($Update) {
+    Invoke-Checked -Command 'git' -ArgumentList @(
+        '-C', $RepoWiseSource, 'fetch', 'origin', $RepoWiseBranch
+    )
+    Invoke-Checked -Command 'git' -ArgumentList @(
+        '-C', $MetricsSource, 'fetch', 'origin', $MetricsBranch
+    )
+    Invoke-Checked -Command 'git' -ArgumentList @(
+        '-C', $RepoWiseSource, 'merge-base', '--is-ancestor', 'HEAD', "origin/$RepoWiseBranch"
+    )
+    Invoke-Checked -Command 'git' -ArgumentList @(
+        '-C', $MetricsSource, 'merge-base', '--is-ancestor', 'HEAD', "origin/$MetricsBranch"
+    )
+    Invoke-Checked -Command 'git' -ArgumentList @(
+        '-C', $RepoWiseSource, 'merge', '--ff-only', "origin/$RepoWiseBranch"
+    )
+    Invoke-Checked -Command 'git' -ArgumentList @(
+        '-C', $MetricsSource, 'merge', '--ff-only', "origin/$MetricsBranch"
+    )
+}
 if (-not (Test-Path -LiteralPath (Join-Path $MetricsSource 'pyproject.toml'))) {
     throw "Workspace-metrics project file was not found in $MetricsSource."
 }
@@ -209,8 +194,14 @@ if ($LASTEXITCODE -ne 0) {
     throw "Could not read the installed Repowise commit in $RepoWiseSource."
 }
 $InstalledCommit = ($InstalledCommitLines | Out-String).Trim()
+$MetricsInstalledCommitLines = & git -C $MetricsSource rev-parse --short HEAD
+if ($LASTEXITCODE -ne 0) {
+    throw "Could not read the installed extension commit in $MetricsSource."
+}
+$MetricsInstalledCommit = ($MetricsInstalledCommitLines | Out-String).Trim()
 
 Write-Host ''
 Write-Host "Installed Repowise at $InstalledCommit"
+Write-Host "Installed workspace-metrics at $MetricsInstalledCommit"
 Write-Host "Environment: $RepoWiseVenv"
 Write-Host "Run commands with: $RepoWiseCommand"

@@ -5,16 +5,13 @@ readonly REPOWISE_REPO_URL="https://github.com/SteelOtter1242/repowise-ifx.git"
 readonly REPOWISE_BRANCH="beta"
 readonly WORKSHOP_BETA_COMMIT="86caf6a53b4c39aba5579be4229b4cb442c6038f"
 readonly REPOWISE_SSH_URL="git@github.com:SteelOtter1242/repowise-ifx.git"
-
-SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-if [[ -f "${SCRIPT_DIR}/../pyproject.toml" ]]; then
-  METRICS_PACKAGE="${SCRIPT_DIR}/.."
-else
-  METRICS_PACKAGE="${SCRIPT_DIR}/../packages/repowise-workspace-metrics"
-fi
-METRICS_PACKAGE="$(cd -- "${METRICS_PACKAGE}" && pwd)"
+readonly METRICS_REPO_URL="https://github.com/SteelOtter1242/repowise-workspace-metrics.git"
+readonly METRICS_REPO_SSH_URL="git@github.com:SteelOtter1242/repowise-workspace-metrics.git"
+readonly METRICS_BRANCH="main"
+readonly METRICS_COMMIT="3d42e58c8d0636fca727ea5b9cd4a9f667c3fc2d"
 export REPOWISE_HOME="${REPOWISE_HOME:-${HOME}/.local/share/repowise-workshop}"
 REPOWISE_SOURCE="${REPOWISE_HOME}/repowise-ifx"
+METRICS_SOURCE="${REPOWISE_HOME}/repowise-workspace-metrics"
 REPOWISE_VENV="${REPOWISE_HOME}/.venv"
 REPOWISE_PYTHON="${REPOWISE_VENV}/bin/python"
 REPOWISE_BIN="${REPOWISE_VENV}/bin/repowise"
@@ -26,9 +23,9 @@ usage() {
 Usage: install-workspace-metrics.sh [--update]
 
 Install Repowise beta and the workspace-metrics extension into REPOWISE_HOME.
-The first install uses the workshop beta snapshot. Re-running reuses the
-existing checkout and environment. Pass --update to fast-forward the checkout
-to the latest origin/beta before reinstalling.
+This script can be downloaded and run without checking out the extension repo.
+The first install uses pinned snapshots. Re-running reuses the checkouts and
+environment. Pass --update to fast-forward Repowise to the latest beta.
 
 Set REPOWISE_HOME once to choose a different installation directory.
 EOF
@@ -57,8 +54,6 @@ done
 
 command -v git >/dev/null 2>&1 || die "git is required"
 command -v uv >/dev/null 2>&1 || die "uv is required (https://docs.astral.sh/uv/)"
-[[ -f "${METRICS_PACKAGE}/pyproject.toml" ]] ||
-  die "Run this script from the repowise-extensions checkout; workspace-metrics source was not found"
 
 mkdir -p "${REPOWISE_HOME}"
 
@@ -97,6 +92,31 @@ else
   fi
 fi
 
+if [[ -d "${METRICS_SOURCE}/.git" ]]; then
+  metrics_origin="$(git -C "${METRICS_SOURCE}" remote get-url origin)"
+  case "${metrics_origin}" in
+    "${METRICS_REPO_URL}"|"${METRICS_REPO_SSH_URL}")
+      ;;
+    *)
+      die "Existing extension checkout at ${METRICS_SOURCE} has unexpected origin: ${metrics_origin}"
+      ;;
+  esac
+  [[ -z "$(git -C "${METRICS_SOURCE}" status --porcelain)" ]] ||
+    die "Extension checkout has local changes; commit or stash them before continuing"
+else
+  [[ ! -e "${METRICS_SOURCE}" ]] ||
+    die "Path exists but is not an extension git checkout: ${METRICS_SOURCE}"
+  git clone --branch "${METRICS_BRANCH}" --single-branch \
+    "${METRICS_REPO_URL}" "${METRICS_SOURCE}"
+fi
+
+if ! git -C "${METRICS_SOURCE}" cat-file -e "${METRICS_COMMIT}^{commit}" 2>/dev/null; then
+  git -C "${METRICS_SOURCE}" fetch origin "${METRICS_BRANCH}"
+fi
+git -C "${METRICS_SOURCE}" switch --detach "${METRICS_COMMIT}"
+[[ -f "${METRICS_SOURCE}/pyproject.toml" ]] ||
+  die "Workspace-metrics project file was not found in ${METRICS_SOURCE}"
+
 if [[ ! -x "${REPOWISE_PYTHON}" ]]; then
   uv venv --python 3.11 "${REPOWISE_VENV}"
 fi
@@ -105,7 +125,7 @@ uv pip install --python "${REPOWISE_PYTHON}" \
   --reinstall-package repowise \
   --reinstall-package repowise-workspace-metrics \
   "${REPOWISE_SOURCE}" \
-  "${METRICS_PACKAGE}"
+  "${METRICS_SOURCE}"
 
 "${REPOWISE_PYTHON}" - <<'PY'
 from importlib.metadata import version

@@ -11,15 +11,19 @@ $RepoWiseUrl = 'https://github.com/SteelOtter1242/repowise-ifx.git'
 $RepoWiseSshUrl = 'git@github.com:SteelOtter1242/repowise-ifx.git'
 $RepoWiseBranch = 'beta'
 $WorkshopBetaCommit = '86caf6a53b4c39aba5579be4229b4cb442c6038f'
+$MetricsRepoUrl = 'https://github.com/SteelOtter1242/repowise-workspace-metrics.git'
+$MetricsRepoSshUrl = 'git@github.com:SteelOtter1242/repowise-workspace-metrics.git'
+$MetricsBranch = 'main'
+$MetricsCommit = '3d42e58c8d0636fca727ea5b9cd4a9f667c3fc2d'
 
 if ($Help) {
     @'
 Usage: install-workspace-metrics.ps1 [-Update]
 
 Install Repowise beta and the workspace-metrics extension into REPOWISE_HOME.
-The first install uses the workshop beta snapshot. Re-running reuses the
-existing checkout and environment. Pass -Update to fast-forward the checkout
-to the latest origin/beta before reinstalling.
+This script can be downloaded and run without checking out the extension repo.
+The first install uses pinned snapshots. Re-running reuses the checkouts and
+environment. Pass -Update to fast-forward Repowise to the latest beta.
 
 Set REPOWISE_HOME once to choose a different installation directory.
 '@
@@ -36,14 +40,10 @@ if ([string]::IsNullOrWhiteSpace($env:REPOWISE_HOME)) {
 $RepoWiseHome = [System.IO.Path]::GetFullPath($env:REPOWISE_HOME)
 $env:REPOWISE_HOME = $RepoWiseHome
 $RepoWiseSource = Join-Path $RepoWiseHome 'repowise-ifx'
+$MetricsSource = Join-Path $RepoWiseHome 'repowise-workspace-metrics'
 $RepoWiseVenv = Join-Path $RepoWiseHome '.venv'
 $RepoWisePython = Join-Path $RepoWiseVenv 'Scripts\python.exe'
 $RepoWiseCommand = Join-Path $RepoWiseVenv 'Scripts\repowise.exe'
-$MetricsPackage = Join-Path $PSScriptRoot '..'
-if (-not (Test-Path -LiteralPath (Join-Path $MetricsPackage 'pyproject.toml'))) {
-    $MetricsPackage = Join-Path $PSScriptRoot '..\packages\repowise-workspace-metrics'
-}
-$MetricsPackage = [System.IO.Path]::GetFullPath($MetricsPackage)
 
 function Invoke-Checked {
     param(
@@ -65,10 +65,6 @@ if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
 if (-not (Get-Command uv -ErrorAction SilentlyContinue)) {
     throw 'uv is required (https://docs.astral.sh/uv/).'
 }
-if (-not (Test-Path -LiteralPath (Join-Path $MetricsPackage 'pyproject.toml'))) {
-    throw 'Workspace-metrics package source was not found beside this script.'
-}
-
 New-Item -ItemType Directory -Force -Path $RepoWiseHome | Out-Null
 $GitDirectory = Join-Path $RepoWiseSource '.git'
 
@@ -138,6 +134,43 @@ else {
     }
 }
 
+if (Test-Path -LiteralPath (Join-Path $MetricsSource '.git')) {
+    $MetricsOriginLines = & git -C $MetricsSource remote get-url origin
+    if ($LASTEXITCODE -ne 0) {
+        throw "Could not read the origin URL for $MetricsSource."
+    }
+    $MetricsOrigin = ($MetricsOriginLines | Out-String).Trim()
+    if ($MetricsOrigin -notin @($MetricsRepoUrl, $MetricsRepoSshUrl)) {
+        throw "Unexpected origin for existing extension checkout at ${MetricsSource}: $MetricsOrigin"
+    }
+    $MetricsLocalChanges = & git -C $MetricsSource status --porcelain
+    if ($LASTEXITCODE -ne 0) {
+        throw "Could not inspect the extension checkout at $MetricsSource."
+    }
+    if ($MetricsLocalChanges) {
+        throw "Extension checkout has local changes; commit or stash them before continuing: $MetricsSource"
+    }
+}
+else {
+    if (Test-Path -LiteralPath $MetricsSource) {
+        throw "Path exists but is not an extension git checkout: $MetricsSource"
+    }
+    Invoke-Checked -Command 'git' -ArgumentList @(
+        'clone', '--branch', $MetricsBranch, '--single-branch',
+        $MetricsRepoUrl, $MetricsSource
+    )
+}
+
+Invoke-Checked -Command 'git' -ArgumentList @(
+    '-C', $MetricsSource, 'fetch', 'origin', $MetricsBranch
+)
+Invoke-Checked -Command 'git' -ArgumentList @(
+    '-C', $MetricsSource, 'switch', '--detach', $MetricsCommit
+)
+if (-not (Test-Path -LiteralPath (Join-Path $MetricsSource 'pyproject.toml'))) {
+    throw "Workspace-metrics project file was not found in $MetricsSource."
+}
+
 if (-not (Test-Path -LiteralPath $RepoWisePython)) {
     Invoke-Checked -Command 'uv' -ArgumentList @(
         'venv', '--python', '3.11', $RepoWiseVenv
@@ -148,7 +181,7 @@ Invoke-Checked -Command 'uv' -ArgumentList @(
     'pip', 'install', '--python', $RepoWisePython,
     '--reinstall-package', 'repowise',
     '--reinstall-package', 'repowise-workspace-metrics',
-    $RepoWiseSource, $MetricsPackage
+    $RepoWiseSource, $MetricsSource
 )
 
 $CompatibilityCheck = @'

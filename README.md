@@ -40,6 +40,47 @@ If beta already includes the prerequisite, do not apply it again. Git and
 `cloc` must be installed on the VM. The locally verified counter is cloc 1.98.
 The extension does not replace the fork with upstream Repowise.
 
+### Workshop installers
+
+Either installer can be downloaded and run by itself; it fetches the pinned
+workspace-metrics source into `REPOWISE_HOME`, so no extension-repository
+checkout is needed. The first install uses the verified beta snapshot above.
+Re-running reuses the checkouts and environment; pass `--update` / `-Update`
+only when you want to fast-forward Repowise to the latest `beta`. The update is
+rejected before changing Repowise source if that checkout has local changes.
+After an update, the script verifies Repowise's version and required helpers;
+it stops with an error if the new beta is incompatible. Existing indexes are
+not deleted.
+
+On Linux or macOS:
+
+```sh
+export REPOWISE_HOME="$HOME/.local/share/repowise-workshop"
+bash scripts/install-workspace-metrics.sh
+
+# Later, only when you want the latest beta:
+bash scripts/install-workspace-metrics.sh --update
+```
+
+On Windows, from PowerShell without WSL:
+
+```powershell
+$env:REPOWISE_HOME = Join-Path $env:LOCALAPPDATA 'RepowiseWorkshop'
+.\scripts\install-workspace-metrics.ps1
+
+# Later, only when you want the latest beta:
+.\scripts\install-workspace-metrics.ps1 -Update
+```
+
+`REPOWISE_HOME` is optional. Its defaults are
+`$HOME/.local/share/repowise-workshop` on Unix and
+`%LOCALAPPDATA%\RepowiseWorkshop` on Windows. Git, `uv`, and network access to
+GitHub and the Python package index are required; `uv` installs Python 3.11.
+`cloc` is required when collecting metrics. If PowerShell's execution policy
+blocks the script, invoke it for this process with
+`powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\install-workspace-metrics.ps1`
+rather than changing the machine-wide policy.
+
 ### One-action persistent report
 
 ```sh

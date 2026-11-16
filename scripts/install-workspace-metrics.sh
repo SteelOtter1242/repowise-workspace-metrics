@@ -16,16 +16,17 @@ REPOWISE_VENV="${REPOWISE_HOME}/.venv"
 REPOWISE_PYTHON="${REPOWISE_VENV}/bin/python"
 REPOWISE_BIN="${REPOWISE_VENV}/bin/repowise"
 
-UPDATE_BETA=0
+UPDATE=0
 
 usage() {
   cat <<'EOF'
-Usage: install-workspace-metrics.sh [--update]
+Usage: install-workspace-metrics.sh [--update|--upgrade]
 
 Install Repowise beta and the workspace-metrics extension into REPOWISE_HOME.
 This script can be downloaded and run without checking out the extension repo.
 The first install uses pinned snapshots. Re-running reuses the checkouts and
-environment. Pass --update to fast-forward Repowise to the latest beta.
+environment. Pass --update or --upgrade to fast-forward Repowise to beta and
+the extension to main.
 
 Set REPOWISE_HOME once to choose a different installation directory.
 EOF
@@ -38,8 +39,8 @@ die() {
 
 while (($#)); do
   case "$1" in
-    --update)
-      UPDATE_BETA=1
+    --update|--upgrade)
+      UPDATE=1
       ;;
     --help|-h)
       usage
@@ -66,30 +67,16 @@ if [[ -d "${REPOWISE_SOURCE}/.git" ]]; then
       die "Existing checkout at ${REPOWISE_SOURCE} has unexpected origin: ${origin}"
       ;;
   esac
-  [[ -z "$(git -C "${REPOWISE_SOURCE}" status --porcelain)" ]] ||
+  repowise_changes="$(git -C "${REPOWISE_SOURCE}" status --porcelain)"
+  [[ -z "${repowise_changes}" ]] ||
     die "Checkout has local changes; commit or stash them before continuing"
 
-  if ((UPDATE_BETA)); then
-    git -C "${REPOWISE_SOURCE}" fetch origin "${REPOWISE_BRANCH}"
-    if git -C "${REPOWISE_SOURCE}" show-ref --verify --quiet "refs/heads/${REPOWISE_BRANCH}"; then
-      git -C "${REPOWISE_SOURCE}" switch "${REPOWISE_BRANCH}"
-    else
-      git -C "${REPOWISE_SOURCE}" switch --create "${REPOWISE_BRANCH}" \
-        --track "origin/${REPOWISE_BRANCH}"
-    fi
-    git -C "${REPOWISE_SOURCE}" merge --ff-only "origin/${REPOWISE_BRANCH}"
-  fi
 else
   [[ ! -e "${REPOWISE_SOURCE}" ]] ||
     die "Path exists but is not a Repowise git checkout: ${REPOWISE_SOURCE}"
   git clone --branch "${REPOWISE_BRANCH}" --single-branch \
     "${REPOWISE_REPO_URL}" "${REPOWISE_SOURCE}"
   git -C "${REPOWISE_SOURCE}" switch --detach "${WORKSHOP_BETA_COMMIT}"
-  if ((UPDATE_BETA)); then
-    git -C "${REPOWISE_SOURCE}" fetch origin "${REPOWISE_BRANCH}"
-    git -C "${REPOWISE_SOURCE}" switch "${REPOWISE_BRANCH}"
-    git -C "${REPOWISE_SOURCE}" merge --ff-only "origin/${REPOWISE_BRANCH}"
-  fi
 fi
 
 if [[ -d "${METRICS_SOURCE}/.git" ]]; then
@@ -101,19 +88,30 @@ if [[ -d "${METRICS_SOURCE}/.git" ]]; then
       die "Existing extension checkout at ${METRICS_SOURCE} has unexpected origin: ${metrics_origin}"
       ;;
   esac
-  [[ -z "$(git -C "${METRICS_SOURCE}" status --porcelain)" ]] ||
+  metrics_changes="$(git -C "${METRICS_SOURCE}" status --porcelain)"
+  [[ -z "${metrics_changes}" ]] ||
     die "Extension checkout has local changes; commit or stash them before continuing"
 else
   [[ ! -e "${METRICS_SOURCE}" ]] ||
     die "Path exists but is not an extension git checkout: ${METRICS_SOURCE}"
   git clone --branch "${METRICS_BRANCH}" --single-branch \
     "${METRICS_REPO_URL}" "${METRICS_SOURCE}"
+  if ! git -C "${METRICS_SOURCE}" cat-file -e "${METRICS_COMMIT}^{commit}" 2>/dev/null; then
+    git -C "${METRICS_SOURCE}" fetch origin "${METRICS_BRANCH}"
+  fi
+  git -C "${METRICS_SOURCE}" switch --detach "${METRICS_COMMIT}"
 fi
 
-if ! git -C "${METRICS_SOURCE}" cat-file -e "${METRICS_COMMIT}^{commit}" 2>/dev/null; then
+if ((UPDATE)); then
+  git -C "${REPOWISE_SOURCE}" fetch origin "${REPOWISE_BRANCH}"
   git -C "${METRICS_SOURCE}" fetch origin "${METRICS_BRANCH}"
+  git -C "${REPOWISE_SOURCE}" merge-base --is-ancestor HEAD "origin/${REPOWISE_BRANCH}" ||
+    die "Repowise checkout cannot fast-forward to origin/${REPOWISE_BRANCH}"
+  git -C "${METRICS_SOURCE}" merge-base --is-ancestor HEAD "origin/${METRICS_BRANCH}" ||
+    die "Extension checkout cannot fast-forward to origin/${METRICS_BRANCH}"
+  git -C "${REPOWISE_SOURCE}" merge --ff-only "origin/${REPOWISE_BRANCH}"
+  git -C "${METRICS_SOURCE}" merge --ff-only "origin/${METRICS_BRANCH}"
 fi
-git -C "${METRICS_SOURCE}" switch --detach "${METRICS_COMMIT}"
 [[ -f "${METRICS_SOURCE}/pyproject.toml" ]] ||
   die "Workspace-metrics project file was not found in ${METRICS_SOURCE}"
 
@@ -147,5 +145,6 @@ PY
 "${REPOWISE_BIN}" workspace-metrics --help >/dev/null
 
 printf '\nInstalled Repowise at %s\n' "$(git -C "${REPOWISE_SOURCE}" rev-parse --short HEAD)"
+printf 'Installed workspace-metrics at %s\n' "$(git -C "${METRICS_SOURCE}" rev-parse --short HEAD)"
 printf 'Environment: %s\n' "${REPOWISE_VENV}"
 printf 'Run commands with: %s\n' "${REPOWISE_BIN}"
